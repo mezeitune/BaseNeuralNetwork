@@ -12,11 +12,14 @@ case class NeuralNetwork(inputLayer: Int, //Number of inputs of the neural Netwo
                           hiddenLayer: List[Neuron],
                           outputLayer: List[Neuron]) {
 
-
+  /**
+    * Alternative constructor for deactivateds neuron layers
+    * Used to Initialize real NeuralNetwork in a Trainer
+    */
   def this(inputLayer: Int, hiddenLayerCount: Int, outputLayerCount: Int) =
     this(inputLayer,
-      List.fill(hiddenLayerCount)(new Neuron(inputLayer+1)),
-      List.fill(outputLayerCount)(new Neuron(hiddenLayerCount+1)))
+      List.fill(hiddenLayerCount)(new Neuron(inputLayer+1)), //fill a plus for bias to the theta neuron
+      List.fill(outputLayerCount)(new Neuron(hiddenLayerCount+1))) //fill a plus for bias to the theta neuron
 
   require(inputLayer > 0)
   require(hiddenLayer.foldLeft(true)((actual,neuron)=> actual && neuron.theta.length == inputLayer + 1))
@@ -31,6 +34,7 @@ case class NeuralNetwork(inputLayer: Int, //Number of inputs of the neural Netwo
 
   /**
     * z2
+    * Image 3
     */
   def resultsHiddenLayer(input:Input):Result = {
     val inputWithBias = 1.0 :: input
@@ -39,6 +43,7 @@ case class NeuralNetwork(inputLayer: Int, //Number of inputs of the neural Netwo
 
   /**
     * a2 = Sigmoid(z2)
+    * Image 4
     */
   def resultsHiddenLayerSigmoided(input:Input): Result = sigmoidList(resultsHiddenLayer(input))
 
