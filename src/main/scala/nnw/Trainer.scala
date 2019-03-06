@@ -1,5 +1,5 @@
-import nnw.Neuron
-import nnw.nnw.TrainingSet
+import nnw.{Neuron, nnwMath}
+import nnw.nnw.{Input, Result, TrainingSet}
 
 import scala.util.Random
 
@@ -83,27 +83,24 @@ case class Trainer(maxIter: Int, lambda: Double, step: Double) {
   }
 
 
-
-    //todo: modificar esto para checkear si usar el gradiente o no , esto esta medio a piacere del chabon
-
   def customFmin(network: NeuralNetwork, training: TrainingSet, iteration: Int): NeuralNetwork = {
 
     def newNetworkFromGradient(stepUsed: Double): NeuralNetwork = {
 
-      val currCost = costFunction(network, training, lambda)
-      println("Current cost: " + currCost)
+      //val currCost = costFunction(network, training, lambda)
+      //println("Current cost: " + currCost)
 
       val grad = gradient(network, training)
 
       //Modify theta
       val newNetwork = network.updateThetasWithGradient(grad, stepUsed)
-      val newCost = costFunction(newNetwork, training, lambda)
+      //val newCost = costFunction(newNetwork, training, lambda)
 
-      if (newCost > currCost) newNetworkFromGradient(stepUsed / 2) //step too big
-      else {
-        println("New cost: " + newCost)
+      //if (newCost > currCost) newNetworkFromGradient(stepUsed / 2) //step too big
+      //else {
+        //println("New cost: " + newCost)
         newNetwork
-      }
+      //}
 
     }
 
@@ -113,8 +110,81 @@ case class Trainer(maxIter: Int, lambda: Double, step: Double) {
 
   }
 
-  //todo: agregar toda la parte de backprop
-  def gradient(network: NeuralNetwork, set: TrainingSet) = ???
+  def outputDeltas(squareError: List[Double],
+                   network: NeuralNetwork,
+                   trainingExample: Input): List[Double] = {
+
+    network.outputLayer.zip(squareError).flatMap{
+      case(neuron,error) => {
+        neuron.theta.map{_ =>
+          error*
+            nnwMath.sigmoidGradient(neuron.apply(trainingExample))*
+            nnwMath.sigmoid(neuron.apply(trainingExample))
+        }
+      }
+    }
+  }
+
+  def hiddenDeltas(squareError: List[Double],
+                   network: NeuralNetwork,
+                   trainingExample: Input): List[Double] = {
+    val totalErrorSum = squareError.sum
+
+    val aux2 = network.hiddenLayer.map{
+      neuron => {
+        totalErrorSum*
+          nnwMath.sigmoidGradient(neuron.apply(trainingExample))
+      }
+    }
+    val hiddenThetas = network.hiddenLayer.zipWithIndex.map{ case (x,neuronNumber) =>(x.theta,neuronNumber) }
+
+    val hiddenThetasFlatten = for(h <- hiddenThetas) yield {
+      val thetas = h._1
+      val allThetas = thetas.tail.zipWithIndex.map{case (theta,index) => (theta,(index+1,h._2))}
+      List(((1.0),(0,h._2))):::allThetas
+    }
+
+    hiddenThetasFlatten.flatten.map{
+      case (x,(thetaNumber,neuronNumber)) => {
+        val inputNumber = thetaNumber match {
+          case 0 => 0
+          case _ => (thetaNumber - 1)
+        }
+        aux2(neuronNumber)*trainingExample(inputNumber)
+      }
+    }
+  }
+
+
+  def calculateSquareError(network: NeuralNetwork, trainingExample: Input, expectedResult: Result): List[Double] = {
+    val resul = network.apply(trainingExample)
+    val zippedResult = resul zip expectedResult
+    zippedResult map { case (res,exp) => nnwMath.totalErrorDerivate(exp,res)}
+  }
+
+
+  def gradient(network: NeuralNetwork, set: TrainingSet): (List[Double],List[Double]) = {
+
+
+    val intermediateGradients = set.map{
+      case(trainingExample, expectedResult) => {
+        val squareError = calculateSquareError(network,trainingExample,expectedResult)
+        val outputD = outputDeltas(squareError,network,trainingExample)
+        val hiddenD = hiddenDeltas(squareError,network,trainingExample)
+
+        (hiddenD,outputD)
+      }
+    }
+
+    val incrementsHidden = intermediateGradients.map{ x => x._1}
+    val incrementsOutput = intermediateGradients.map{ x => x._2}
+
+    val finalHidden = incrementsHidden.transpose.map( x => x.sum / set.length)
+    val finalOutput = incrementsOutput.transpose.map( x => x.sum / set.length)
+
+    (finalHidden,finalOutput)
+
+  }
 
 
 }

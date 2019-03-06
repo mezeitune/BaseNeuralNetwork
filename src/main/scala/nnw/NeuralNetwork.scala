@@ -69,5 +69,21 @@ case class NeuralNetwork(inputLayer: Int, //Number of inputs of the neural Netwo
   }
 
 
-  def updateThetasWithGradient(grad: List[Double], alpha: Double): NeuralNetwork = ???
+  def updateThetasWithGradient(grad: (List[Double],List[Double]), alpha: Double): NeuralNetwork = {
+
+    val inputSize = inputLayer + 1
+    val hiddenLayerSize = hiddenLayer.length + 1
+
+    val hiddenThetas = hiddenLayer.flatMap(x=>x.theta)
+    val outputThetas = outputLayer.flatMap(x=>x.theta)
+
+    val newHiddenThetas = (hiddenThetas zip grad._1).map{case(x,y) => x-alpha*y}
+    val newOutputThetas = (outputThetas zip grad._2).map{ case(x,y) => x-alpha*y}
+
+    val newHiddenLayer = newHiddenThetas.grouped(inputSize).map{x=>Neuron(x)}.toList
+    val newOutputLayer = newOutputThetas.grouped(hiddenLayerSize).map{x=>Neuron(x)}.toList
+
+    val das = NeuralNetwork(inputLayer,newHiddenLayer,newOutputLayer)
+    das
+  }
 }
